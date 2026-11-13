@@ -1,0 +1,22 @@
+# Vivado / Vitis generated files (prebuilt files are attached to Releases)
+*.cache/
+*.gen/
+*.runs/
+*.sim/
+*.hw/
+*.ip_user_files/
+*.jou
+*.log
+.Xil/
+.metadata/
+.DS_Store
+
+# PetaLinux build output
+linux/petalinux/build/
+linux/petalinux/images/
+linux/petalinux/components/
+
+# ADI Talise firmware headers: download from Analog Devices, do not commit
+# (see baremetal/FMC_ADRV9009_PS/FMC_ADRV9009_PS/src/firmware/README.md)
+talise_arm_binary.h
+talise_stream_binary.h

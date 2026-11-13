@@ -1,0 +1,90 @@
+#include <dt-bindings/iio/adc/adi,adrv9009.h>
+
+/include/ "system-conf.dtsi"
+
+/ {
+    model = "OpenSourceSDRLab XC7Z100-ADRV9009";
+
+    status-leds {
+        compatible = "gpio-leds";
+
+        adrv9009-status {
+            label = "adrv9009:heartbeat";
+            /* Schematic V1.0 page 2: White1 / PS_LED / MIO7 / B24. */
+            gpios = <&gpio0 7 0>; /* active high */
+            default-state = "off";
+            linux,default-trigger = "none";
+        };
+    };
+};
+
+&trx0_adrv9009 {
+    jesd204-device;
+    #jesd204-cells = <2>;
+    jesd204-top-device = <0>;
+    jesd204-link-ids = <DEFRAMER_LINK_TX FRAMER_LINK_RX FRAMER_LINK_ORX>;
+
+    jesd204-inputs =
+        <&axi_adrv9009_rx_jesd 0 FRAMER_LINK_RX>,
+        <&axi_adrv9009_rx_os_jesd 0 FRAMER_LINK_ORX>,
+        <&axi_adrv9009_core_tx 0 DEFRAMER_LINK_TX>;
+
+    /delete-property/ interrupts;
+};
+
+&axi_adrv9009_core_tx {
+    jesd204-device;
+    #jesd204-cells = <2>;
+    jesd204-inputs = <&axi_adrv9009_tx_jesd 0 DEFRAMER_LINK_TX>;
+};
+
+&axi_adrv9009_rx_jesd {
+    jesd204-device;
+    #jesd204-cells = <2>;
+    jesd204-inputs = <&axi_adrv9009_adxcvr_rx 0 FRAMER_LINK_RX>;
+};
+
+&axi_adrv9009_rx_os_jesd {
+    jesd204-device;
+    #jesd204-cells = <2>;
+    jesd204-inputs = <&axi_adrv9009_adxcvr_rx_os 0 FRAMER_LINK_ORX>;
+};
+
+&axi_adrv9009_tx_jesd {
+    jesd204-device;
+    #jesd204-cells = <2>;
+    jesd204-inputs = <&axi_adrv9009_adxcvr_tx 0 DEFRAMER_LINK_TX>;
+};
+
+&axi_adrv9009_adxcvr_rx {
+    jesd204-device;
+    #jesd204-cells = <2>;
+    jesd204-inputs = <&clk0_ad9528 0 FRAMER_LINK_RX>;
+    clocks = <&clk0_ad9528 1>;
+    clock-names = "conv";
+};
+
+&axi_adrv9009_adxcvr_rx_os {
+    jesd204-device;
+    #jesd204-cells = <2>;
+    jesd204-inputs = <&clk0_ad9528 0 FRAMER_LINK_ORX>;
+    clocks = <&clk0_ad9528 1>;
+    clock-names = "conv";
+};
+
+&axi_adrv9009_adxcvr_tx {
+    jesd204-device;
+    #jesd204-cells = <2>;
+    jesd204-inputs = <&clk0_ad9528 0 DEFRAMER_LINK_TX>;
+    clocks = <&clk0_ad9528 1>;
+    clock-names = "conv";
+};
+
+&clk0_ad9528 {
+    jesd204-device;
+    #jesd204-cells = <2>;
+    jesd204-sysref-provider;
+
+    adi,sysref-pattern-mode = <SYSREF_PATTERN_NSHOT>;
+    /delete-property/ adi,sysref-request-enable;
+};

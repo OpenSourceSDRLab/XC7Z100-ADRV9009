@@ -1,0 +1,229 @@
+From: OpenSourceSDRLab <support@opensourcesdrlab.com>
+Subject: [PATCH] XC7Z100-ADRV9009 board support
+
+Board-specific changes to the Analog Devices Linux kernel, branch 2022_R2
+(https://github.com/analogdevicesinc/linux, commit
+7aa63204d396316bb6c362b34294babae7a6f32b), used for the prebuilt SD-card
+image of the OpenSourceSDRLab XC7Z100-ADRV9009:
+
+- adrv9009: default JESD204B serializer / deserializer lane polarity
+  inversion for this board's layout (0x1 / 0xF), default TRX and AUX
+  LO frequency 5 GHz
+- zynq-zc706-adv7511-adrv9009.dts: ZC706 HPC I2C (EEPROM, AD7291) removed
+- zynq-zc706*.dts(i): board model, PS UART0 console, Ethernet PHY at
+  address 0, USB PHY reset on MIO46, W25Q256 QSPI flash partitions,
+  ZC706-only I2C/HDMI/audio nodes commented out
+
+Apply with:  git apply 0001-XC7Z100-ADRV9009-board-support.patch
+(from the top of the kernel tree). Licence: GPL-2.0, as the files it changes.
+
+diff --git a/arch/arm/boot/dts/zynq-zc706-adv7511-adrv9009.dts b/arch/arm/boot/dts/zynq-zc706-adv7511-adrv9009.dts
+--- a/arch/arm/boot/dts/zynq-zc706-adv7511-adrv9009.dts
++++ b/arch/arm/boot/dts/zynq-zc706-adv7511-adrv9009.dts
+@@ -17,23 +17,6 @@
+ #include <dt-bindings/gpio/gpio.h>
+ #include <dt-bindings/jesd204/adxcvr.h>
+ 
+-&i2c_mux {
+-	i2c@5 { /* HPC IIC */
+-		#address-cells = <1>;
+-		#size-cells = <0>;
+-		reg = <5>;
+-
+-		eeprom@50 {
+-			compatible = "at24,24c02";
+-			reg = <0x50>;
+-		};
+-
+-		ad7291@2f {
+-			compatible = "adi,ad7291";
+-			reg = <0x2f>;
+-		};
+-	};
+-};
+ 
+ &fpga_axi {
+ 	rx_dma: rx-dmac@7c400000 {
+diff --git a/arch/arm/boot/dts/zynq-zc706-adv7511.dtsi b/arch/arm/boot/dts/zynq-zc706-adv7511.dtsi
+--- a/arch/arm/boot/dts/zynq-zc706-adv7511.dtsi
++++ b/arch/arm/boot/dts/zynq-zc706-adv7511.dtsi
+@@ -6,7 +6,7 @@
+ 		#address-cells = <0x1>;
+ 		#size-cells = <0x1>;
+ 		ranges;
+-
++/*
+ 		i2c@41600000 {
+ 			compatible = "xlnx,axi-iic-1.02.a", "xlnx,xps-iic-2.00.a";
+ 			reg = <0x41600000 0x10000>;
+@@ -160,14 +160,14 @@
+ 
+ 			#sound-dai-cells = <0>;
+ 		};
+-
++*/
+ 		axi_sysid_0: axi-sysid-0@45000000 {
+ 			compatible = "adi,axi-sysid-1.00.a";
+ 			reg = <0x45000000 0x10000>;
+ 		};
+ 
+ 	};
+-
++/*
+ 	audio_clock: audio_clock {
+ 		compatible = "fixed-clock";
+ 		#clock-cells = <0>;
+@@ -194,4 +194,5 @@
+ 			};
+ 		};
+ 	};
++*/
+ };
+diff --git a/arch/arm/boot/dts/zynq-zc706.dtsi b/arch/arm/boot/dts/zynq-zc706.dtsi
+--- a/arch/arm/boot/dts/zynq-zc706.dtsi
++++ b/arch/arm/boot/dts/zynq-zc706.dtsi
+@@ -3,7 +3,7 @@
+ #include <dt-bindings/interrupt-controller/irq.h>
+ 
+ / {
+-	model = "Xilinx Zynq ZC706";
++	model = "OpenSourceSDRLab XC7Z100-ADRV9009";
+ 	memory {
+ 		device_type = "memory";
+ 		reg = <0x00000000 0x40000000>;
+@@ -11,9 +11,9 @@
+ 
+ 	chosen {
+ 		bootargs = "console=ttyPS0,115200 root=/dev/mmcblk0p2 rw earlyprintk rootfstype=ext4 rootwait";
+-		stdout-path = "/amba@0/uart@E0001000";
+-	};
+-
++		stdout-path = "serial0:115200n8";
++   };
++/*
+ 	leds {
+ 		compatible = "gpio-leds";
+ 		ds8 {
+@@ -61,22 +61,26 @@
+ 			gpios = <&gpio0 59 0>;
+ 		};
+ 	};
++	*/
+ };
+ 
+ &gem0 {
+-	phy-handle = <&phy0>;
++	status = "okay";
+ 	phy-mode = "rgmii-id";
++	phy-handle = <&phy0>;
+ 
+-	phy0: phy@7 {
+-		device_type = "ethernet-phy";
+-		reg = <0x7>;
++	phy0: phy@0 { /* Marvell 88e1512 */
++		reg = <0>;
++		compatible = "ethernet-phy-ieee802.3-c22";
+ 	};
+ };
+ 
++
+ &usb0 {
+-	xlnx,phy-reset-gpio = <&gpio0 7 0>;
++	xlnx,phy-reset-gpio = <&gpio0 46 0>;
+ };
+ 
++/*
+ &qspi {
+ 	status = "okay";
+ 	is-dual = <1>;
+@@ -111,3 +115,42 @@
+ 		};
+ 	};
+ };
++*/
++
++&qspi {
++	status = "okay";
++	is-dual = <1>;
++	num-cs = <1>;
++	primary_flash: ps7-qspi@0 {
++		#address-cells = <1>;
++		#size-cells = <1>;
++		spi-tx-bus-width = <1>;
++		spi-rx-bus-width = <4>;
++		compatible = "winbond,w25q256";  /* correct compatible string */
++		reg = <0x0>;
++		spi-max-frequency = <50000000>;  /* must not exceed the flash maximum (W25Q256: typically 104 MHz); adjust as needed */
++
++		partition@0 {
++			label = "boot";
++			reg = <0x00000000 0x00500000>;  /* 5MB */
++		};
++		partition@500000 {
++			label = "bootenv";
++			reg = <0x00500000 0x00020000>;  /* 128KB */
++		};
++		partition@520000 {
++			label = "config";
++			reg = <0x00520000 0x00020000>;  /* 128KB */
++		};
++		partition@540000 {
++			label = "image";
++			reg = <0x00540000 0x00a80000>;  /* 10.5MB */
++		};
++		partition@fc0000 {
++			label = "spare";  /* remaining space: 32 MB - 15.75 MB = 16.25 MB */
++			reg = <0x00fc0000 0x01040000>;  /* start 0xfc0000, size 0x1040000 (up to the end of 32 MB) */
++		};
++	};
++};
++
++
+diff --git a/arch/arm/boot/dts/zynq.dtsi b/arch/arm/boot/dts/zynq.dtsi
+--- a/arch/arm/boot/dts/zynq.dtsi
++++ b/arch/arm/boot/dts/zynq.dtsi
+@@ -6,7 +6,7 @@
+ 
+ 	aliases: aliases {
+ 		ethernet0 = &gem0;
+-		serial0 = &uart1;
++		serial0 = &uart0;
+ 	};
+ };
+ 
+@@ -23,7 +23,7 @@
+ 	dr_mode = "host"; /* This breaks OTG mode */
+ };
+ 
+-&uart1 {
++&uart0 {
+ 	status = "okay";
+ };
+ 
+diff --git a/drivers/iio/adc/adrv9009.c b/drivers/iio/adc/adrv9009.c
+--- a/drivers/iio/adc/adrv9009.c
++++ b/drivers/iio/adc/adrv9009.c
+@@ -4314,9 +4314,9 @@ static int adrv9009_phy_parse_dt(struct iio_dev *iodev, struct device *dev)
+ 	ADRV9009_OF_PROP("adi,jesd204-ser-pre-emphasis",
+ 			 &phy->talInit.jesd204Settings.serPreEmphasis, 1);
+ 	ADRV9009_OF_PROP("adi,jesd204-ser-invert-lane-polarity",
+-			 &phy->talInit.jesd204Settings.serInvertLanePolarity, 0);
++			 &phy->talInit.jesd204Settings.serInvertLanePolarity, 0x1);
+ 	ADRV9009_OF_PROP("adi,jesd204-des-invert-lane-polarity",
+-			 &phy->talInit.jesd204Settings.desInvertLanePolarity, 0);
++			 &phy->talInit.jesd204Settings.desInvertLanePolarity, 0xF);
+ 	ADRV9009_OF_PROP("adi,jesd204-des-eq-setting",
+ 			 &phy->talInit.jesd204Settings.desEqSetting, 1);
+ 	ADRV9009_OF_PROP("adi,jesd204-sysref-lvds-mode",
+@@ -4602,9 +4602,9 @@ static int adrv9009_phy_parse_dt(struct iio_dev *iodev, struct device *dev)
+ 
+ 
+ 	ADRV9009_OF_PROP("adi,trx-pll-lo-frequency_hz", &phy->trx_lo_frequency,
+-			 2400000000ULL);
++			 5000000000ULL);
+ 	ADRV9009_OF_PROP("adi,aux-pll-lo-frequency_hz", &phy->aux_lo_frequency,
+-			 2500000000ULL);
++			 5000000000ULL);
+ 
+ 
+ 	phy->loopFilter_stability = 3;
